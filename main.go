@@ -16,16 +16,18 @@ func main() {
 	l.Println("Starting up product api!")
 
 	hh := handlers.NewHello(l)
+	gh := handlers.NewGoodbye(l)
 
 	sm := http.NewServeMux()
 	sm.Handle("/", hh)
+	sm.Handle("/goodbye", gh)
 
 	s := &http.Server{
 		Addr:         ":9090",
 		Handler:      sm,
-		IdleTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		ReadTimeout:  30 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		WriteTimeout: 1 * time.Second,
+		ReadTimeout:  1 * time.Second,
 	}
 
 	go func() {
