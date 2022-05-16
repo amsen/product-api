@@ -7,9 +7,20 @@ POST http://localhost:9090 HTTP/1.1
 content-type: application/json
 
 {
-    "name": "tea",
+    "name": "Tea",
     "description":"a nice cup of tea",
-    "price": 1.57
+    "price": 1.57,
+    "sku": "ghi457"
 }
 
+###
 
+PUT http://localhost:9090/456 HTTP/1.1
+content-type: application/json
+
+{
+    "name": "Espresso",
+    "description":"Frothy coffee with milk",
+    "price": 6.28,
+    "sku": "def456"
+}

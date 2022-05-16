@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/amsen/product-api/handlers"
+	"github.com/gorilla/mux"
 )
 
 func main() {
@@ -17,8 +18,19 @@ func main() {
 
 	ph := handlers.NewProducts(l)
 
-	sm := http.NewServeMux()
-	sm.Handle("/", ph)
+	sm := mux.NewRouter()
+	// sm.Handle("/", ph)
+
+	getRouter := sm.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/", ph.GetProducts)
+
+	postRouter := sm.Methods(http.MethodPost).Subrouter()
+	postRouter.HandleFunc("/", ph.AddProducts)
+	postRouter.Use(ph.ValidateProductMiddleware)
+
+	putRouter := sm.Methods(http.MethodPut).Subrouter()
+	putRouter.HandleFunc("/{id:[0-9]+}", ph.UpdateProduct)
+	putRouter.Use(ph.ValidateProductMiddleware)
 
 	s := &http.Server{
 		Addr:         ":9090",

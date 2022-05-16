@@ -1,12 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/amsen/product-api/data"
+	"github.com/gorilla/mux"
 )
 
 type Products struct {
@@ -17,34 +18,7 @@ func NewProducts(l *log.Logger) *Products {
 	return &Products{l}
 }
 
-func (p *Products) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		p.getProducts(w, r)
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		p.addProducts(w, r)
-		return
-	}
-
-	if r.Method == http.MethodPut {
-		uri := strings.Split(r.URL.String(), "/")
-		id := uri[len(uri)-1]
-		idval, err := strconv.Atoi(id)
-		if err != nil {
-			http.Error(w, "failed to get id from url", http.StatusBadRequest)
-		}
-		p.l.Println(idval)
-		p.updateProduct(idval, w, r)
-		return
-	}
-	//catch all for all unimplemented methods
-	w.WriteHeader(http.StatusMethodNotAllowed)
-
-}
-
-func (p *Products) getProducts(w http.ResponseWriter, r *http.Request) {
+func (p *Products) GetProducts(w http.ResponseWriter, r *http.Request) {
 	lp := data.GetProducts()
 	err := lp.ToJSON(w)
 	if err != nil {
@@ -53,25 +27,22 @@ func (p *Products) getProducts(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *Products) addProducts(w http.ResponseWriter, r *http.Request) {
-	prod := data.NewProduct()
-	err := prod.FromJSON(r.Body)
-	if err != nil {
-		http.Error(w, "Could not decode the payload..", http.StatusBadRequest)
-		return
-	}
+func (p *Products) AddProducts(w http.ResponseWriter, r *http.Request) {
+	prod := r.Context().Value(KeyProduct{}).(*data.Product)
 	p.l.Printf("Received Product: %#v\n", prod)
 	// lp := data.GetProducts()
 	data.AddProduct(prod)
 }
 
-func (p *Products) updateProduct(id int, w http.ResponseWriter, r *http.Request) {
-	prod := data.NewProduct()
-	err := prod.FromJSON(r.Body)
+func (p *Products) UpdateProduct(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		http.Error(w, "Could not decode the payload..", http.StatusBadRequest)
+		http.Error(w, "Could not fetch the id to update, invalid id.", http.StatusBadRequest)
 		return
 	}
+
+	prod := r.Context().Value(KeyProduct{}).(*data.Product)
 
 	err = data.UpdateProduct(id, prod)
 	if err == data.ErrproductNotFound {
@@ -82,4 +53,26 @@ func (p *Products) updateProduct(id int, w http.ResponseWriter, r *http.Request)
 		http.Error(w, data.ErrproductNotFound.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+type KeyProduct struct{}
+
+func (p *Products) ValidateProductMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		prod := data.NewProduct()
+		// prod := data.Product{}
+
+		err := prod.FromJSON(r.Body)
+		if err != nil {
+			http.Error(w, "Could not decode the payload..", http.StatusBadRequest)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), KeyProduct{}, prod)
+		r = r.WithContext(ctx)
+
+		next.ServeHTTP(w, r)
+
+	})
 }
